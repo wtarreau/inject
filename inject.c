@@ -184,7 +184,7 @@ static _syscall4(long, tee, int, fd_in, int, fd_out, size_t, len, unsigned int, 
 /* sur combien de bits code-t-on la taille d'un entier (ex: 32bits -> 5) */
 #define	INTBITS		5
 
-#define	USER_AGENT	"Mozilla/4.0.(compatible; MSIE 4.01; Windows)"
+#define	USER_AGENT	"Mozilla/4.0 (compatible; MSIE 7.01; Windows)"
 
 #define MINTIME(old, new)	(((new)<0)?(old):(((old)<0||(new)<(old))?(new):(old)))
 #define SETNOW(a)		(*a=now)
