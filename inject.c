@@ -125,6 +125,10 @@
 #define __NR_splice             340
 #define __NR_tee                342
 #define __NR_vmsplice           343
+#elif defined (__aarch64__)
+#define __NR_splice             76
+#define __NR_tee                77
+#define __NR_vmsplice           75
 #elif defined (__mips__)
 #define __NR_splice             304
 #define __NR_tee                306
