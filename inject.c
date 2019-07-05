@@ -317,6 +317,7 @@ int arg_fast_connect = 0;
 int arg_fast_close = 0;
 int arg_use_splice = 0;
 int arg_regular_time = 0;
+int arg_abort_error = 0;
 static int arg_timeout = 0;
 static int arg_log = 0, arg_abs_time = 0;
 static int arg_maxtime = 0;
@@ -798,6 +799,8 @@ static inline void put_free_port(struct local_ip *ip, u_int16_t p, int offset) {
 		close(fd);
 		if (attempts++ < 10)
 			goto retry;
+		if (arg_abort_error)
+			stopnow = 1;
 		return 2;
 	    }
 	    else if (errno != EALREADY && errno != EISCONN) {
@@ -1308,6 +1311,8 @@ int scheduler(void *arg) {
 	else if ((cli->status == STATUS_ERROR) /*&& (cli->current->actobj == 0)*/) {
 	    stats[thr].totalerr++;
 	    destroyclient(cli, prev);
+	    if (arg_abort_error)
+		stopnow = 1;
 	    continue;
 	}
 	prev = cli; /* conserve le chainage pour accélérer la suppression */
@@ -2129,15 +2134,15 @@ void sighandler(int sig) {
 void usage() {
     fprintf(stderr,
 	    "Inject36 - simple HTTP load generator (C) 2000-2012 Willy Tarreau <w@1wt.eu>\n"
-	    "Syntaxe : inject -u <users> -f <scnfile> [-i <iter>] [-d <duration>] [-l] [-r]\n"
-	    "          [-t <timeout>] [-n <maxsock>] [-o <maxobj>] [-a] [-s <starttime>]\n"
-	    "          [-C <cli_at_once>] [-w <waittime>] [-p nbprocs] [-S ip-ip:p-p]* [-N]\n"
-	    "          [-H \"<header>\"]* [-T <thktime>] [-G <URL>] [-P <nbpages>] [-R] [-F]\n"
+	    "Syntaxe : inject -u <users> -f <scnfile> [-i <iter>] [-d <duration>] [-lreaNRF]\n"
+	    "          [-t <timeout>] [-n <maxsock>] [-o <maxobj>] [-s <starttime>]\n"
+	    "          [-C <cli_at_once>] [-w <waittime>] [-p nbprocs] [-S ip-ip:p-p]*\n"
+	    "          [-H \"<header>\"]* [-T <thktime>] [-G <URL>] [-P <nbpages>]\n"
 	    "- users    : nombre de clients simultanes (=nb d'instances du scenario)\n"
 	    "- iter     : nombre maximal d'iterations a effectuer par client\n"
 	    "- waittime : temps (en ms) entre deux affichages des stats (0=jamais)\n"
 	    "- starttime: temps (en ms) d'incrementation du nb de clients (montee en charge)\n"
-	    "- scnfile  : nom du fichier de scénario a utiliser\n"
+	    "- scnfile  : nom du fichier de scénario a utiliser  ; -e = abort on error\n"
 	    "- timeout  : timeout (en ms) sur un objet avant destruction du client\n"
 	    "- duration : duree maximale du test (en secondes)   ; -D = random distance\n"
 	    "- maxobj   : nombre maximal d'objets en cours de lecture par client\n"
@@ -2204,6 +2209,8 @@ int main(int argc, char **argv) {
 		arg_random_delay = 1;
 	    else if (*flag == 'R')
 		arg_regular_time = 1;
+	    else if (*flag == 'e')
+		arg_abort_error = 1;
 	    else if (*flag == 'a')
 		arg_abs_time = 1;
 	    else if (*flag == 'F')
