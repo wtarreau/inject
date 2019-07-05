@@ -88,6 +88,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
+#include <sys/wait.h>
 #include <stdarg.h>
 #include <sys/resource.h>
 #include <time.h>
@@ -1325,6 +1326,20 @@ int scheduler(void *arg) {
     return delay;
 }
 
+void sigchld(int sig)
+{
+	/* just collect stats and wait for children to stop */
+	int ret;
+
+	do {
+		ret = waitpid(-1, NULL, WNOHANG);
+		if (!active_thread && ret == -1) {
+			stopnow = 1; // no more children
+			break;
+		}
+	} while (ret);
+}
+
 void SelectRun() {
   int next_time, time2;
   int status;
@@ -2400,6 +2415,7 @@ int main(int argc, char **argv) {
 	    }
         }
 	/* the remaining thread does only collect stats */
+	signal(SIGCHLD, sigchld);
 	active_thread=0;
 	thr = 0;
     }
