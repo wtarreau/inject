@@ -234,6 +234,12 @@ struct local_ip {
 	struct local_ip *next;
 };
 
+/* a remote host and IP */
+struct host {
+	char *host;
+	struct sockaddr_in addr;
+};
+
 /* un objet dont le fd est -1 est inactif */
 struct pageobj {
 	struct pageobj *next;
@@ -340,6 +346,9 @@ int ramp_step = 0;
 /* set to the local_ip list if required */
 static struct local_ip *local_ip_list = NULL;
 static struct local_ip *next_ip = NULL;
+static struct host *hosts = NULL; // allocated for #nbhosts
+static int nbhosts = 0;
+static int need_host = 0;
 
 /* stats[0] = global. stats[x]=per thread */
 struct stats {
@@ -369,6 +378,7 @@ int pipesize = TRASHSIZE;
 int maxfd = 0;
 int thr = 0;
 int stopnow = 0;
+static int curr_host = 0;
 static struct pageobj **fdtab;
 
 fd_set	*ReadEvent,
@@ -2177,6 +2187,7 @@ void usage()
 		"          [-t <timeout>] [-n <maxsock>] [-o <maxobj>] [-s <starttime>]\n"
 		"          [-C <cli_at_once>] [-w <waittime>] [-p nbprocs] [-S ip-ip:p-p]*\n"
 		"          [-H \"<header>\"]* [-T <thktime>] [-G <URL>] [-P <nbpages>]\n"
+		"          [-h host[,...]]\n"
 		"- users    : nombre de clients simultanes (=nb d'instances du scenario)\n"
 		"- iter     : nombre maximal d'iterations a effectuer par client\n"
 		"- waittime : temps (en ms) entre deux affichages des stats (0=jamais)\n"
@@ -2191,7 +2202,8 @@ void usage()
 		"- [ -a ]   : affiche la date absolue (uniquement avec -l) ; -F = fast connect\n"
 		"Ex: inject -H \"Host: www\" -T 1000 -G \"10.0.0.1:80/\" -o 4 -u 1\n"
 		"Le fichier de scenario a pour syntaxe :\n"
-		"host addr:port\n"
+		"host addr:port|.\n"
+		"header string\n"
 		"new pageXXX <think time en ms>\n"
 		"\t{get|post} {ip:port|.} /fichier1.html var1=val&clientid=%%s&passwd=%%s\n"
 		"\t{get|post} {ip:port|.} /fichier2.html var2=val&clientid=%%s&passwd=%%s\n"
@@ -2300,6 +2312,20 @@ int main(int argc, char **argv)
 						ptr = (char *)malloc(strlen(*argv) + 3);
 						sprintf(ptr, "%s\r\n", *argv);
 						global_headers = ptr;
+					}
+					break;
+				case 'h' :
+					for (char *curr = *argv; curr;) {
+						char *next = strchr(curr, ',');
+						if (next)
+							*(next++) = 0;
+						hosts = realloc(hosts, (nbhosts + 1) * sizeof(*hosts));
+						hosts[nbhosts].host = strdup(curr);
+						hosts[nbhosts].addr = *str2sa(curr);
+						if (hosts[nbhosts].addr.sin_family == AF_UNSPEC)
+							exit(1); // error already reported
+						nbhosts++;
+						curr = next;
 					}
 					break;
 				default: usage();
@@ -2461,6 +2487,11 @@ int main(int argc, char **argv)
 				/* those threads don't collect stats */
 				arg_stattime = 0;
 				active_thread = 1;
+
+				/* try to spread the starting hosts evenly between cients and processes */
+				if (nbhosts)
+					curr_host = (thr * nbhosts / arg_nbprocs + thr / arg_nbprocs) % nbhosts;
+
 				SelectRun();
 				exit(0);
 			}
