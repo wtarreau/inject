@@ -276,6 +276,7 @@ struct client {
 	struct page *current;
 	struct scnpage *pages;
 	struct local_ip *addr; /* NULL if automatically assigned */
+	struct host *currhost; /* default host for this client */
 	char *username;
 	char *password;
 	char *cookie;
@@ -679,7 +680,10 @@ struct page *newpage(struct scnpage *scn, struct client *client)
 			snprintf(var_buf, sizeof(var_buf), scnobj->vars, client->username, client->password);
 			variables = var_buf;
 		}
-		*obj = newobj(scnobj->meth, scnobj->host, &scnobj->addr, scnobj->uri, variables, page);
+		*obj = newobj(scnobj->meth,
+			      scnobj->host ? scnobj->host  : client->currhost->host,
+			      scnobj->host ? &scnobj->addr : &client->currhost->addr,
+			      scnobj->uri, variables, page);
 		obj = &((*obj)->next);
 	}
 	page->objecttostart = page->objects;
@@ -926,6 +930,12 @@ int newclient(char *username, char *password)
 	newclient->addr = NULL;
 	if (local_ip_list)
 		newclient->addr = get_free_ip(arg_maxobj);
+
+	if (nbhosts) {
+		newclient->currhost = &hosts[curr_host++];
+		if (curr_host >= nbhosts)
+			curr_host = 0;
+	}
 
 	newclient->pages = firstscnpage;
 	newclient->current = newpage(newclient->pages, newclient);
@@ -1529,11 +1539,19 @@ struct scnobj *newscnobj(int meth, char *host, char *uri, char *vars)
 	if (curscnpage == NULL)
 		Abort("Scenario must define PAGE before OBJECT.\n");
 
+	/* "." is used to stay on the client's default host */
+	if (host && strcmp(host, ".") == 0)
+		host = NULL;
+
 	obj = (struct scnobj *)calloc(1, sizeof(struct scnobj));
-	memcpy(&obj->addr, str2sa(host), sizeof(obj->addr));
+	if (host)
+		memcpy(&obj->addr, str2sa(host), sizeof(obj->addr));
+	else
+		need_host = 1;
+	/* otherwise host will be adjusted at runtime by picking from the client's */
 
 	obj->meth = meth;
-	obj->host = strdup(host);
+	obj->host = host ? strdup(host) : host;
 	obj->uri = strdup(uri);
 	obj->vars = (vars == NULL) ? NULL : strdup(vars);  // pas plutot alloc_pool(vars) ?
 
@@ -2408,6 +2426,11 @@ int main(int argc, char **argv)
 	}
 	else if (readscnfile(arg_scnfile) < 0) {
 		fprintf(stderr, "[inject] Error reading scn file : %s\n", arg_scnfile);
+		exit(1);
+	}
+
+	if (need_host && !nbhosts) {
+		fprintf(stderr, "[inject] fatal: some unnamed hosts found, -h <host>[,...] mandatory\n");
 		exit(1);
 	}
 
