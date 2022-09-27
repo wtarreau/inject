@@ -2193,8 +2193,11 @@ int main(int argc, char **argv) {
 	*p = ' ';
 	p++;
     }
-    p--;
-    *p = '\0';
+
+    if (argc > 0) {
+	    p--;
+	    *p = '\0';
+    }
 
     argc--; argv++;
     while (argc > 0) {
