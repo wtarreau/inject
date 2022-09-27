@@ -566,7 +566,9 @@ static inline unsigned long tv_remain(struct timeval *tv1, struct timeval *tv2)
 
 
 /* retourne un pointeur sur une structure de type sockaddr_in remplie d'après
-   la chaine <str> entrée au format "123.123.123.123:12345". */
+ * la chaine <str> entrée au format "123.123.123.123:12345".
+ * Returns an entry of family AF_UNSPEC in case of error.
+ */
 struct sockaddr_in *str2sa(char *str)
 {
 	static struct sockaddr_in sa;
@@ -582,17 +584,21 @@ struct sockaddr_in *str2sa(char *str)
 	else
 		port = 0;
 
-	if (!inet_aton(str, &sa.sin_addr)) {
-		struct hostent *he;
-
-		if ((he = gethostbyname(str)) == NULL)
-			fprintf(stderr, "[NetTools] Invalid server name: %s\n", str);
-		else
-			sa.sin_addr = *(struct in_addr *) *(he->h_addr_list);
-	}
 	sa.sin_port = htons(port);
 	sa.sin_family = AF_INET;
 
+	if (!inet_aton(str, &sa.sin_addr)) {
+		struct hostent *he;
+
+		if ((he = gethostbyname(str)) == NULL) {
+			sa.sin_family = AF_UNSPEC;
+			fprintf(stderr, "Invalid server name: %s\n", str);
+			goto done;
+		}
+		else
+			sa.sin_addr = *(struct in_addr *) *(he->h_addr_list);
+	}
+ done:
 	free(str);
 	return &sa;
 }
