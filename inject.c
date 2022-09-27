@@ -303,7 +303,7 @@ struct scnpage {
 
 struct scnpage *curscnpage = NULL;
 struct scnobj  *curscnobj = NULL;
-char curscnhost[64]="host not set !";
+char curscnhost[64]=".";
 
 struct client *clients = NULL;
 char *global_headers = NULL;
