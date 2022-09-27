@@ -2310,14 +2310,16 @@ int main(int argc, char **argv)
 	if ((!arg_geturl && !arg_scnfile) || !arg_nbclients)
 		usage();
 
-	if (geteuid() == 0) {
-		rlim.rlim_cur = rlim.rlim_max = arg_maxsock + 3;
-		if (setrlimit(RLIMIT_NOFILE, &rlim) == -1)
-			fprintf(stderr, "Warning: cannot set RLIMIT_NOFILE to %d\n", arg_maxsock+3);
-	}
 	if (getrlimit(RLIMIT_NOFILE, &rlim) == 0) {
-		if (rlim.rlim_max < arg_maxsock + 3)
-			fprintf(stderr, "Warning: system will not allocate more than %ld sockets\n", rlim.rlim_max);
+		int max = rlim.rlim_max;
+
+		if (rlim.rlim_cur < arg_maxsock + 3) {
+			rlim.rlim_cur = arg_maxsock + 3;
+			if (rlim.rlim_max < rlim.rlim_cur)
+				rlim.rlim_max = rlim.rlim_cur;
+			if (setrlimit(RLIMIT_NOFILE, &rlim) == -1)
+				fprintf(stderr, "Warning: cannot set RLIMIT_NOFILE to %d (max=%d)\n", arg_maxsock+3, max);
+		}
 	}
 	else
 		fprintf(stderr, "Warning: cannot verify if system will accept %d sockets\n", arg_maxsock+3);
