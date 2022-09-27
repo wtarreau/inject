@@ -70,6 +70,7 @@
  *
  */
 
+#define __FD_SETSIZE 65536
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
