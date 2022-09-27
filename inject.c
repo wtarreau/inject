@@ -643,7 +643,8 @@ struct page *newpage(struct scnpage *scn, struct client *client)
 	struct page *page;
 	struct pageobj **obj;
 	struct scnobj *scnobj;
-	char variables[sizeof_str];
+	char *variables = NULL;
+	char var_buf[sizeof_str];
 
 	//    page = (struct page *)calloc(1, sizeof(struct page));
 	page = (struct page *)alloc_pool(page);
@@ -656,14 +657,13 @@ struct page *newpage(struct scnpage *scn, struct client *client)
 	obj = &(page->objects);
 
 	for (scnobj = scn->objects; scnobj; scnobj = scnobj->next) {
+		variables = NULL;
 		if ((scnobj->vars != NULL) && (client != NULL) &&
 		    (client->username != NULL) && (client->password != NULL)) {
-			sprintf(variables, scnobj->vars, client->username, client->password);
-			*obj = newobj(scnobj->meth, scnobj->host, &scnobj->addr, scnobj->uri, variables, page);
+			snprintf(var_buf, sizeof(var_buf), scnobj->vars, client->username, client->password);
+			variables = var_buf;
 		}
-		else 
-			*obj = newobj(scnobj->meth, scnobj->host, &scnobj->addr, scnobj->uri, NULL, page);
-
+		*obj = newobj(scnobj->meth, scnobj->host, &scnobj->addr, scnobj->uri, variables, page);
 		obj = &((*obj)->next);
 	}
 	page->objecttostart = page->objects;
