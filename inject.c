@@ -70,6 +70,7 @@
  *
  */
 
+#define _GNU_SOURCE
 #define __FD_SETSIZE 65536
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,6 +114,10 @@
 #ifndef F_SETPIPE_SZ
 #define F_SETPIPE_SZ (1024 + 7)
 #endif
+
+#if !defined(__GNU_LIBRARY__) || (__GLIBC__ < 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ < 5)
+
+/* splice, tee and vmsplice appeared in glibc 2.5 */
 
 #ifndef __NR_splice
 #if defined(__x86_64__)
@@ -160,6 +165,8 @@ static _syscall4(long, vmsplice, int, fd, const struct iovec *, iov, unsigned lo
 static _syscall4(long, tee, int, fd_in, int, fd_out, size_t, len, unsigned int, flags);
 #endif
 #endif
+
+#endif /* glibc < 2.5 */
 
 #define METH_NONE	0
 #define METH_GET	1
